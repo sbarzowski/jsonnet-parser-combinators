@@ -72,10 +72,10 @@ local parseSeq(parsers) = function(state)
     local ps = std.map(normalize, parsers);
     local parsers = ps;
     local parseSeqH(pIndex, state, val) =
+        local err = state[2];
         if pIndex >= length then
-            [val, state]
+            [if err != null then null else val, state]
         else    
-            local err = state[2];
             if err != null then
                 [null, state]
             else
