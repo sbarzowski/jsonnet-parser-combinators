@@ -141,21 +141,11 @@ local runParser(parser, text) =
     [parsed[0], parsed[1][2]]
     ;
 
-local pc = {
-};
-true
-&& std.assertEqual([null, null], runParser(parseConst("foo"), "foo"))
-&& std.assertEqual([null, "mismatch"], runParser(parseConst("foo"), "fo"))
-&& std.assertEqual([null, null], runParser(parseConst(["f", "o", "o"]), ["f", "o", "o"]))
-&& std.assertEqual([null, null], runParser(parseSeq([parseConst("aaa"), parseConst("bbb")]), "aaabbb"))
-&& std.assertEqual([null, null], runParser(parseSeq(["aaa", "bbb"]), "aaabbb"))
-&& std.assertEqual([null, "mismatch"], runParser(parseSeq(["aaa", "bbb"]), "aaa"))
-&& std.assertEqual([null, null], runParser(parseAny(["aaa", "bbb"]), "aaa"))
-&& std.assertEqual([null, null], runParser(parseAny(["aaa", "bbb"]), "bbb"))
-&& std.assertEqual([null, "no match"], runParser(parseAny(["aaa", "bbb"]), "bb"))
-&& std.assertEqual([null, null], runParser(parseGreedy("a"), "aaaaaa"))
-&& std.assertEqual([null, null], runParser(parseSeq([parseGreedy("a"), "b"]), "aaaaaab"))
-&& std.assertEqual([null, null], runParser(parseList("a", ",", "."), "a,a,a,a."))
-&& std.assertEqual([null, "mismatch"], runParser(parseList("a", ",", "."), "a,a,a,a,."))
-
-
+{
+    runParser:: runParser,
+    parseAny:: parseAny,
+    parseList:: parseList,
+    parseSeq:: parseSeq,
+    parseConst:: parseConst,
+    parseGreedy:: parseGreedy,
+}
