@@ -1,5 +1,5 @@
 local a = import 'arithmetic.libsonnet';
-local pc = import '../parser-combinators.jsonnet';
+local pc = import '../parser-combinators.libsonnet';
 
 true
 && std.assertEqual([4, null], pc.runParser(a.expr, "2+2"))

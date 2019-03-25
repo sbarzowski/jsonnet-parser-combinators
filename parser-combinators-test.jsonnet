@@ -1,4 +1,4 @@
-local pc = import 'parser-combinators.jsonnet';
+local pc = import 'parser-combinators.libsonnet';
 true
 && std.assertEqual([null, null], pc.runParser(pc.parseConst("foo"), "foo"))
 && std.assertEqual([null, "mismatch"], pc.runParser(pc.parseConst("foo"), "fo"))

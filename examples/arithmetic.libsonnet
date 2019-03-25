@@ -1,4 +1,4 @@
-local pc = import '../parser-combinators.jsonnet';
+local pc = import '../parser-combinators.libsonnet';
 
 local whitespace = pc.parseGreedy(pc.parseConst(" "));
 local in_whitespace(p) = pc.apply(pc.parseSeq([whitespace, p, whitespace]), function(x) x[1]);
