@@ -32,6 +32,32 @@ local parseConst(pattern) = function(state)
             withError(state, "mismatch")
     ;
 
+local capture(parser) = function(state)
+    local startPos = state[0], text = state[1];
+    local parsed = parser(state);
+    local endPos = parsed[1][0], err = parsed[1][2];
+    [text[startPos:endPos], parsed[1]]
+    ;
+
+local captureWith(parser, f) = function(state)
+    local startPos = state[0], text = state[1];
+    local parsed = parser(state);
+    local endPos = parsed[1][0], err = parsed[1][2];
+    [f(text[startPos:endPos], parsed[0]), parsed[1]]
+    ;
+
+local apply(parser, f) = function(state)
+    local parsed = parser(state);
+    [f(parsed[0]), parsed[1]]
+    ;
+
+local setValue(parser, val) = function(state)
+    local parsed = parser(state);
+    std.trace("parsed: " + parsed, [val, parsed[1]])
+    ;
+
+local noop = function(state) [null, state];
+
 local normalize(protoParser) =
     if std.isString(protoParser) then
         parseConst(protoParser)
@@ -45,19 +71,18 @@ local parseSeq(parsers) = function(state)
     local length = std.length(parsers);
     local ps = std.map(normalize, parsers);
     local parsers = ps;
-    local parseSeqH(pIndex, state) =
+    local parseSeqH(pIndex, state, val) =
         if pIndex >= length then
-            // TODO proper value returning
-            [null, state]
+            [val, state]
         else    
             local err = state[2];
             if err != null then
                 [null, state]
             else
                 local parsed = parsers[pIndex](state);
-                parseSeqH(pIndex + 1, parsed[1])
+                parseSeqH(pIndex + 1, parsed[1], val + [parsed[0]])
         ;
-    parseSeqH(0, state)
+    parseSeqH(0, state, [])
     ;
 
 local parseAny(parsers) = function(state)
@@ -104,6 +129,37 @@ local parseGreedy(parser) = function(state)
         parseGreedyH(state)
     ;
 
+local parseCharFiltered(filter) = function(state)
+    local startPos = state[0], text = state[1], err = state[2];
+    local len = std.length(text);
+    if err != null then
+        state
+    else if startPos < len && filter(text[startPos]) then
+        [text[startPos], [startPos + 1, text, null]]
+    else
+        withError(state, "mismatch")
+    ;
+
+// TODO(sbarzowski) better name
+local parseCharMap(obj) = function(state)
+    local startPos = state[0], text = state[1], err = state[2];
+    local len = std.length(text);
+    local c = text[startPos];
+    if err != null then
+        state
+    else if startPos < len && std.objectHas(obj, c) then
+        [obj[c], [startPos + 1, text, null]]
+    else
+        withError(state, "mismatch")
+    ;
+
+// Batteries
+
+local digit = parseCharFiltered(function(c) c >= '0' && c <= '9');
+local alphaLower = parseCharFiltered(function(c) c >= 'a' && c <= 'z');
+local alphaUpper = parseCharFiltered(function(c) c >= 'A' && c <= 'Z');
+local alpha = parseCharFiltered(function(c) c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z');
+
 // High-level stuff
 
 local parseList(elemP, delimP, closeP) = function(state)
@@ -138,7 +194,8 @@ local parseList(elemP, delimP, closeP) = function(state)
 local runParser(parser, text) = 
     // TODO(sbarzowski) configurable starting position
     local parsed = parser([0, text, null]);
-    [parsed[0], parsed[1][2]]
+    local result = [parsed[0], parsed[1][2]];
+    std.trace("final parsed: " + parsed, result)
     ;
 
 {
@@ -148,4 +205,16 @@ local runParser(parser, text) =
     parseSeq:: parseSeq,
     parseConst:: parseConst,
     parseGreedy:: parseGreedy,
+    capture:: capture,
+    captureWith:: captureWith,
+    apply:: apply,
+    setValue:: setValue,
+    noop:: noop,
+    parseCharMap:: parseCharMap,
+
+    // Batteries
+    alpha:: alpha,
+    alphaLower:: alphaLower,
+    alphaUpper:: alphaUpper,
+    digit:: digit,
 }
