@@ -9,8 +9,6 @@ local operator2 = pc.capture(pc.parseAny(["+", "-"]));
 
 local optional(parser) = pc.parseAny([parser, pc.noop]);
 
-// local expr2 = pc.parseSeq(expr1 )
-
 local funcs = {
     "+":: function(x, y) x + y,
     "-":: function(x, y) x - y,
@@ -28,10 +26,10 @@ local calc(exprVal) =
 
 local applyCalc(p) = pc.apply(p, calc);
 
-local in_paren = pc.apply(pc.parseSeq(["(", expr2, ")"]), function(x) x[1]),
+local in_paren = pc.apply("(", expr2, ")"], function(x) x[1]),
       expr0 = in_whitespace(pc.parseAny([in_paren, int])),
-      expr1 = in_whitespace(applyCalc(pc.parseSeq([expr0, optional(pc.parseSeq([operator1, expr1]))]))),
-      expr2 = in_whitespace(applyCalc(pc.parseSeq([expr1, optional(pc.parseSeq([operator2, expr2]))])))
+      expr1 = in_whitespace(applyCalc([expr0, optional(p[operator1, expr1]]))),
+      expr2 = in_whitespace(applyCalc([expr1, optional([operator2, expr2])]))
       ;
 local expr = expr2;
 
