@@ -86,6 +86,24 @@ local capture(parser) =
         [text[startPos:endPos], parsed[1]]
     ;
 
+local captureWithCheck(parser, f) =
+    local p = normalize(parser);
+    local parser = p;
+    function(state)
+        local startPos = state[0], text = state[1];
+        local parsed = parser(state);
+        local endPos = parsed[1][0], err = parsed[1][2];
+        if err == null then
+            local res = f(text[startPos:endPos], parsed[0]);
+            local err = res[1];
+            if err == null then
+                [res[0], parsed[1]]
+            else
+                withError(parsed[1], res[1])
+        else
+            [null, parsed[1]]
+    ;
+
 local captureWith(parser, f) =
     local p = normalize(parser);
     local parser = p;
@@ -246,6 +264,7 @@ local lex(parsers, ignoredParsers, captureFunc=capture) =
 
 // Utilities
 
+// TODO(sbarzowski) maybe add helpers for cases when it must be valid or when we want to just check if it's valid or not
 local runParser(parser, text) =
     local p = normalize(parser);
     local parser = p;
@@ -264,6 +283,7 @@ local runParser(parser, text) =
     greedy:: parseGreedy,
     capture:: capture,
     captureWith:: captureWith,
+    captureWithCheck:: captureWithCheck,
     apply:: apply,
     setValue:: setValue,
     ignore:: ignore,
