@@ -1,18 +1,6 @@
 // Parser :: State -> (Value, State)
 // State = [Pos, Text, Err or null]
 
-// TODO:
-// Implement and describe recognizer pattern
-//
-// non-progressing recognizer (hack)
-//
-// Implement value handling
-// capture, captureAndRetain
-//
-// High level:
-// lexer, used as `lexer([comment, identifier, operator, string, whatever else])
-// some approach for maintaining token positions
-
 local withError(state, err) =
     local pos = state[0], text = state[1], oldErr = state[2];
     assert oldErr == null;
@@ -74,7 +62,7 @@ local parseAny(parsers) = function(state)
     else
         local parseAnyH(pIndex, state) =
             if pIndex >= length then
-                withError(state, "no match")
+                withError(state, "mismatch")
             else
                 local parsed = parsers[pIndex](state);
                 local newState = parsed[1];
@@ -105,8 +93,14 @@ local captureWith(parser, f) =
         local startPos = state[0], text = state[1];
         local parsed = parser(state);
         local endPos = parsed[1][0], err = parsed[1][2];
-        [f(text[startPos:endPos], parsed[0]), parsed[1]]
+        if err == null then
+            [f(text[startPos:endPos], parsed[0]), parsed[1]]
+        else
+            [null, parsed[1]]
     ;
+
+local captureTextWith(parser, f) =
+    captureWith(parser, function(text, _parsed) f(text));
 
 local apply(parser, f) =
     local p = normalize(parser);
@@ -179,26 +173,35 @@ local parseCharMap(obj) = function(state)
 
 // Batteries
 
+local optional(parser) = parseAny([parser, noop]);
 local digit = parseCharFiltered(function(c) c >= '0' && c <= '9');
+local nonZeroDigit = parseCharFiltered(function(c) c >= '1' && c <= '9');
 local alphaLower = parseCharFiltered(function(c) c >= 'a' && c <= 'z');
 local alphaUpper = parseCharFiltered(function(c) c >= 'A' && c <= 'Z');
 local alpha = parseCharFiltered(function(c) c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z');
 
-local filterNull(parser) = apply(parser, function(arr) std.flatMap(function (x) if x == null then [] else [x], arr));
+local jsonStringChar = parseCharFiltered(function(c) c != '\\' && c != '"' && std.codepoint(c) > 31);
+local escapedJsonStringChar = parseSeq(["\\", parseAny(["\"", "\\", 'b', 'f', 'n', 'r', 't', 'u'])]);
 
-local lex(parsers, ignoredParsers, captureFunc=capture) =
-    local ps = std.map(normalize, parsers);
-    local parsers = ps;
-    local cParsers = std.map(function(p) captureFunc(p), parsers);
-    local iParsers = std.map(ignore, ignoredParsers);
-    filterNull(parseGreedy(parseAny(cParsers+iParsers)))
-    ;
+local int = captureTextWith(
+    parseAny([
+        [optional('-'), nonZeroDigit, parseGreedy(digit)],
+        "0"
+    ]),
+    std.parseInt
+);
+local jsonString = parseSeq(["\"", parseGreedy(parseAny(jsonStringChar, escapedJsonStringChar)), "\""]);
+
+local filterNull(parser) = apply(parser, function(arr) std.filter(function (x) x != null, arr));
+
+local whitespace = parseGreedy(" ");
+local in_whitespace(p) = apply([whitespace, p, whitespace], function(x) x[1]);
 
 // High-level stuff
 
-local parseList(elemP, delimP, closeP) = function(state)
-    local ep = normalize(elemP), dp = normalize(delimP), cp = normalize(closeP);
-    local elemP = ep, delimP = dp, closeP = cp;
+local parseList(openP, elemP, delimP, closeP) = function(state)
+    local op = normalize(openP), ep = normalize(elemP), dp = normalize(delimP), cp = normalize(closeP);
+    local openP = op, elemP = ep, delimP = dp, closeP = cp;
     local err = state[2];
     if err != null then
         state
@@ -222,8 +225,26 @@ local parseList(elemP, delimP, closeP) = function(state)
                 else
                     parseListH(stateDelim)
         ;
-        parseListH(state)
+        local parsed = openP(state);
+        local state = parsed[1];
+        local err = state[2];
+        if err != null then
+            [null, state]
+        else
+            parseListH(state)
     ;
+
+// TODO(sbarzowski) keywords and easy distinguishing between types
+// or should it be a separate step?
+local lex(parsers, ignoredParsers, captureFunc=capture) =
+    local ps = std.map(normalize, parsers);
+    local parsers = ps;
+    local cParsers = std.map(function(p) captureFunc(p), parsers);
+    local iParsers = std.map(ignore, ignoredParsers);
+    filterNull(parseGreedy(parseAny(cParsers+iParsers)))
+    ;
+
+// Utilities
 
 local runParser(parser, text) =
     local p = normalize(parser);
@@ -250,10 +271,15 @@ local runParser(parser, text) =
     charMap:: parseCharMap,
 
     // Batteries
+    optional:: optional,
     alpha:: alpha,
     alphaLower:: alphaLower,
     alphaUpper:: alphaUpper,
     digit:: digit,
+    int:: int,
+    whitespace:: whitespace,
+    in_whitespace:: in_whitespace,
+    jsonString:: jsonString,
 
     lex::lex,
 }

@@ -1,28 +1,28 @@
 local pc = import 'parser-combinators.libsonnet';
+local testutils = import 'test-utils.libsonnet';
 
-local assertParses(expected, parser, input) =
-    std.assertEqual([expected, null], pc.runParser(parser, input));
+local assertParses = testutils.assertParses, assertMismatch = testutils.assertMismatch;
 
 true
-&& std.assertEqual([null, null], pc.runParser(pc.const("foo"), "foo"))
-&& std.assertEqual([null, "mismatch"], pc.runParser(pc.const("foo"), "fo"))
-&& std.assertEqual([null, null], pc.runParser(pc.const(["f", "o", "o"]), ["f", "o", "o"]))
-&& std.assertEqual([[null, null], null], pc.runParser(pc.seq([pc.const("aaa"), pc.const("bbb")]), "aaabbb"))
-&& std.assertEqual([[null, null], null], pc.runParser(pc.seq(["aaa", "bbb"]), "aaabbb"))
-&& std.assertEqual([null, "mismatch"], pc.runParser(pc.seq(["aaa", "bbb"]), "aaa"))
-&& std.assertEqual([null, null], pc.runParser(pc.any(["aaa", "bbb"]), "aaa"))
-&& std.assertEqual([[null, null], null], pc.runParser(["aaa", "bbb"], "aaabbb"))
-
-&& std.assertEqual([null, null], pc.runParser(pc.any(["aaa", "bbb"]), "bbb"))
-&& std.assertEqual([null, "no match"], pc.runParser(pc.any(["aaa", "bbb"]), "bb"))
-&& std.assertEqual([[null, null, null, null, null, null], null], pc.runParser(pc.greedy("a"), "aaaaaa"))
-&& std.assertEqual([[null, null], null], pc.runParser(pc.seq([pc.ignore(pc.greedy("a")), "b"]), "aaaaaab"))
-&& std.assertEqual([null, null], pc.runParser(pc.list("a", ",", "."), "a,a,a,a."))
-&& std.assertEqual([null, "mismatch"], pc.runParser(pc.list("a", ",", "."), "a,a,a,a,."))
-&& std.assertEqual(["aaa", null], pc.runParser(pc.capture(pc.const("aaa")), "aaa"))
-&& std.assertEqual([["aaa", null], null], pc.runParser(pc.captureWith(pc.const("aaa"), function(c, orig) [c, orig]), "aaa"))
-&& std.assertEqual([42, null], pc.runParser(pc.setValue(pc.noop, 42), "aaa"))
-&& std.assertEqual([42, null], pc.runParser(pc.apply(pc.setValue(pc.noop, 21), function(x) x * 2), "aaa"))
+&& assertParses(null, pc.const("foo"), "foo")
+&& assertMismatch(pc.const("foo"), "fo")
+&& assertParses(null, pc.const(["f", "o", "o"]), ["f", "o", "o"])
+&& assertParses([null, null], pc.seq([pc.const("aaa"), pc.const("bbb")]), "aaabbb")
+&& assertParses([null, null], pc.seq(["aaa", "bbb"]), "aaabbb")
+&& assertMismatch(pc.seq(["aaa", "bbb"]), "aaa")
+&& assertParses(null, pc.any(["aaa", "bbb"]), "aaa")
+&& assertParses([null, null], ["aaa", "bbb"], "aaabbb")
+&& assertParses(null, pc.any(["aaa", "bbb"]), "bbb")
+&& assertMismatch(pc.any(["aaa", "bbb"]), "bb")
+&& assertParses([null, null, null, null, null, null], pc.greedy("a"), "aaaaaa")
+&& assertParses([null, null], pc.seq([pc.ignore(pc.greedy("a")), "b"]), "aaaaaab")
+&& assertParses(null, pc.list(pc.noop, "a", ",", "."), "a,a,a,a.")
+&& assertMismatch(pc.list("", "a", ",", "."), "a,a,a,a,.")
+&& assertParses(null, pc.list("[", "a", ",", "]"), "[a,a,a,a]")
+&& assertParses("aaa", pc.capture(pc.const("aaa")), "aaa")
+&& assertParses(["aaa", null], pc.captureWith(pc.const("aaa"), function(c, orig) [c, orig]), "aaa")
+&& assertParses(42, pc.setValue(pc.noop, 42), "aaa")
+&& assertParses(42, pc.apply(pc.setValue(pc.noop, 21), function(x) x * 2), "aaa")
 
 
 
@@ -40,4 +40,13 @@ true
     && assertParses(["a", "=", "b"], lexer, "a       =            b")
     && assertParses(["a", "=", '"xxx"'], lexer, 'a = "xxx"')
     && assertParses(["a", "=", '"x x x"'], lexer, 'a = "x x x"')
+)
+
+
+&& (
+    // Batteries
+    true
+    && assertParses(123, pc.int, "123")
+    && assertMismatch(pc.int, "foo")
+
 )
